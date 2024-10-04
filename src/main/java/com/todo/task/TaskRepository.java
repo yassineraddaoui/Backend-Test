@@ -1,5 +1,6 @@
 package com.todo.task;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -9,15 +10,16 @@ import java.util.Optional;
 
 @Repository
 public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificationExecutor<Task> {
-    List<Task> findAllByOwnerCompany_Id(long companyId);
 
-    List<Task> findAllByOwnerCompany_IdAndOwner_Id(long companyId, long ownerId);
+    List<Task> findAllByOwnerCompany_Id(Long companyId, Pageable pageable);
 
-    void deleteAllByOwnerCompany_IdAndOwner_Id(long companyId, long ownerId);
+    List<Task> findAllByOwnerCompany_IdAndOwner_Id(Long companyId, Long ownerId, Pageable pageable);
 
-    Optional<Task> findByIdAndOwnerCompany_Id(long taskId, long ownerId);
+    void deleteAllByOwnerCompany_IdAndOwner_Id(Long companyId, Long ownerId);
 
-    List<Task> findAllByOwner_Id(long ownerId);
+    Optional<Task> findByIdAndOwnerCompany_Id(Long taskId, Long ownerId);
 
-    Optional<Task> findByIdAndOwner_Id(long taskId, long ownerId);
+    List<Task> findAllByOwner_Id(Long ownerId, Pageable pageable);
+
+    Optional<Task> findByIdAndOwner_Id(Long taskId, Long ownerId);
 }

@@ -7,7 +7,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -16,50 +15,53 @@ public class TaskServiceImpl implements TaskService {
     private final TaskMapper mapper;
     private final TaskRepository taskRepository;
 
-
-    public List<TaskDto> findAllByCompanyIdAndUserIdAndStatus(long companyId,
-                                                              long userId,
+    public List<TaskDto> findAllByCompanyIdAndUserIdAndStatus(Long companyId,
+                                                              Long userId,
                                                               String status,
                                                               int pageNumber,
                                                               int pageSize,
                                                               String sort,
                                                               String order) {
-        Specification<Task> spec = Specification.where(
-                TaskSpecefication.hasCompanyId(companyId)
-                        .and(TaskSpecefication.hasTaskStatus(status.toUpperCase()))
-                        .and(TaskSpecefication.hasUserId(userId))
-        );
+        Specification<Task> spec = Specification.where(null);
+
+        if (companyId != null) {
+            spec = spec.and(TaskSpecefication.hasCompanyId(companyId));
+        }
+
+        if (userId != null) {
+            spec = spec.and(TaskSpecefication.hasUserId(userId));
+        }
+
+        if (status != null && !status.isEmpty()) {
+            spec = spec.and(TaskSpecefication.hasTaskStatus(status.toUpperCase()));
+        }
 
         return taskRepository.findAll(
                         spec,
                         PageRequest.of(pageNumber, pageSize,
-                                Sort.Direction.valueOf(order.toUpperCase()), sort)
+                                Sort.Direction.fromString(order), sort)
                 ).stream()
                 .map(mapper::toTaskDto)
                 .toList();
     }
 
-    public List<TaskDto> findAll() {
-        try {
-            var tasks = this.taskRepository.findAll();
-            return tasks.stream()
-                    .map(mapper::toTaskDto)
-                    .toList();
-        } catch (Exception e) {
-            return Collections.emptyList();
-        }
-    }
-
-    public List<TaskDto> findAllByCompanyId(Long companyId) {
-        return taskRepository.findAllByOwnerCompany_Id(companyId)
-                .stream()
+    public List<TaskDto> findAll(int pageNumber, int pageSize, String sort, String order) {
+        var tasks = taskRepository.findAll(PageRequest.of(pageNumber, pageSize, Sort.Direction.fromString(order), sort));
+        return tasks.stream()
                 .map(mapper::toTaskDto)
                 .toList();
     }
 
-    public List<TaskDto> findAllByUserId(Long userId) {
-        return taskRepository.findAllByOwner_Id(userId)
-                .stream()
+    public List<TaskDto> findAllByCompanyId(Long companyId, int pageNumber, int pageSize, String sort, String order) {
+        var tasks = taskRepository.findAllByOwnerCompany_Id(companyId, PageRequest.of(pageNumber, pageSize, Sort.Direction.fromString(order), sort));
+        return tasks.stream()
+                .map(mapper::toTaskDto)
+                .toList();
+    }
+
+    public List<TaskDto> findAllByUserId(Long userId, int pageNumber, int pageSize, String sort, String order) {
+        var tasks = taskRepository.findAllByOwner_Id(userId, PageRequest.of(pageNumber, pageSize, Sort.Direction.fromString(order), sort));
+        return tasks.stream()
                 .map(mapper::toTaskDto)
                 .toList();
     }
@@ -90,18 +92,18 @@ public class TaskServiceImpl implements TaskService {
         return task.getId();
     }
 
-    public List<TaskDto> findAllByCompanyIdAndUserId(long companyId, long userId) {
-        return taskRepository.findAllByOwnerCompany_IdAndOwner_Id(companyId, userId)
-                .stream()
+    public List<TaskDto> findAllByCompanyIdAndUserId(Long companyId, Long userId, int pageNumber, int pageSize, String sort, String order) {
+        var tasks = taskRepository.findAllByOwnerCompany_IdAndOwner_Id(companyId, userId, PageRequest.of(pageNumber, pageSize, Sort.Direction.fromString(order), sort));
+        return tasks.stream()
                 .map(mapper::toTaskDto)
                 .toList();
     }
 
-    public void deleteAllByCompanyIdAndUserId(long companyId, long userId) {
+    public void deleteAllByCompanyIdAndUserId(Long companyId, Long userId) {
         taskRepository.deleteAllByOwnerCompany_IdAndOwner_Id(companyId, userId);
     }
 
-    public Long updateTaskByCompanyId(long companyId, TaskDto taskDto) {
+    public Long updateTaskByCompanyId(Long companyId, TaskDto taskDto) {
         taskRepository.findByIdAndOwnerCompany_Id(taskDto.getId(), companyId)
                 .orElseThrow(() -> new TaskNotFoundException("No Task found with the ID::" + taskDto.getId()));
         var task = this.mapper.toTask(taskDto);
@@ -127,7 +129,7 @@ public class TaskServiceImpl implements TaskService {
         taskRepository.delete(task);
     }
 
-    public Long updateTaskByUserId(TaskDto taskDto, long userId) {
+    public Long updateTaskByUserId(TaskDto taskDto, Long userId) {
         taskRepository.findByIdAndOwner_Id(taskDto.getId(), userId)
                 .orElseThrow(() -> new TaskNotFoundException("No Task found with the ID::" + taskDto.getId()));
         var task = this.mapper.toTask(taskDto);

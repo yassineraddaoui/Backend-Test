@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
@@ -15,28 +14,30 @@ public class TaskController {
     private final TaskService taskService;
 
     @GetMapping("/company/{companyId}/user/{userId}/status/{status}")
-    public ResponseEntity<List<TaskDto>> getTaskByCompanyIdAndUserIdAndStatus(@PathVariable long companyId,
-                                                                              @PathVariable long userId,
+    public ResponseEntity<List<TaskDto>> getTaskByCompanyIdAndUserIdAndStatus(@PathVariable Long companyId,
+                                                                              @PathVariable Long userId,
                                                                               @PathVariable String status,
                                                                               @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
                                                                               @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
                                                                               @RequestParam(value = "sort", defaultValue = "id") String sort,
-                                                                              @RequestParam(value = "sort", defaultValue = "ASC") String order
-    ) {
+                                                                              @RequestParam(value = "order", defaultValue = "ASC") String order) {
         var tasks = taskService.findAllByCompanyIdAndUserIdAndStatus(companyId, userId, status, pageNumber, pageSize, sort, order);
         return new ResponseEntity<>(tasks, HttpStatus.OK);
     }
 
     @GetMapping("/tasks/{id}")
-    public ResponseEntity<TaskDto> getTask(@PathVariable long id) {
+    public ResponseEntity<TaskDto> getTask(@PathVariable Long id) {
         var task = taskService.findById(id);
         return new ResponseEntity<>(task, HttpStatus.OK);
     }
 
     @GetMapping("/tasks")
-    public ResponseEntity<List<TaskDto>> getTasks() {
-        var task = taskService.findAll();
-        return new ResponseEntity<>(task, HttpStatus.OK);
+    public ResponseEntity<List<TaskDto>> getTasks(@RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
+                                                  @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+                                                  @RequestParam(value = "sort", defaultValue = "id") String sort,
+                                                  @RequestParam(value = "order", defaultValue = "ASC") String order) {
+        var tasks = taskService.findAll(pageNumber, pageSize, sort, order);
+        return new ResponseEntity<>(tasks, HttpStatus.OK);
     }
 
     @PostMapping("/tasks")
@@ -46,7 +47,7 @@ public class TaskController {
     }
 
     @DeleteMapping("/tasks/{id}")
-    public ResponseEntity<Void> deleteTask(@PathVariable long id) {
+    public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
         taskService.deleteById(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
@@ -58,56 +59,68 @@ public class TaskController {
     }
 
     @GetMapping("/user/{userId}/tasks")
-    public ResponseEntity<List<TaskDto>> getTasksByUserId(@PathVariable long userId) {
-        var tasks = taskService.findAllByUserId(userId);
+    public ResponseEntity<List<TaskDto>> getTasksByUserId(@PathVariable Long userId,
+                                                          @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
+                                                          @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+                                                          @RequestParam(value = "sort", defaultValue = "id") String sort,
+                                                          @RequestParam(value = "order", defaultValue = "ASC") String order) {
+        var tasks = taskService.findAllByUserId(userId, pageNumber, pageSize, sort, order);
         return new ResponseEntity<>(tasks, HttpStatus.OK);
     }
 
     @GetMapping("/user/{userId}/tasks/{taskId}")
-    public ResponseEntity<TaskDto> getTaskByIdByUserId(@PathVariable long userId, @PathVariable long taskId) {
+    public ResponseEntity<TaskDto> getTaskByIdByUserId(@PathVariable Long userId, @PathVariable Long taskId) {
         var task = taskService.findByIdAndUserId(taskId, userId);
         return new ResponseEntity<>(task, HttpStatus.OK);
     }
 
-
     @DeleteMapping("/user/{userId}/tasks/{taskId}")
-    public ResponseEntity<String> deleteTaskByIdAndUserId(@PathVariable long userId, @PathVariable long taskId) {
+    public ResponseEntity<String> deleteTaskByIdAndUserId(@PathVariable Long userId, @PathVariable Long taskId) {
         taskService.deleteByIdAndUserId(taskId, userId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @PutMapping("/user/{userId}/tasks")
-    public ResponseEntity<String> updateTaskByUserId(@RequestBody TaskDto taskDto, @PathVariable long userId) {
+    public ResponseEntity<String> updateTaskByUserId(@RequestBody TaskDto taskDto, @PathVariable Long userId) {
         var taskId = taskService.updateTaskByUserId(taskDto, userId);
         return new ResponseEntity<>(String.format("Task %d updated successfully", taskId), HttpStatus.OK);
     }
 
     @GetMapping("/company/{companyId}/tasks/{taskId}")
-    public ResponseEntity<TaskDto> getTaskByIdAndCompanyId(@PathVariable long companyId, @PathVariable long taskId) {
+    public ResponseEntity<TaskDto> getTaskByIdAndCompanyId(@PathVariable Long companyId, @PathVariable Long taskId) {
         var task = taskService.findByIdAndCompanyId(companyId, taskId);
         return new ResponseEntity<>(task, HttpStatus.OK);
     }
 
     @GetMapping("/company/{companyId}/tasks")
-    public ResponseEntity<List<TaskDto>> getTasksByCompanyId(@PathVariable long companyId) {
-        var tasks = taskService.findAllByCompanyId(companyId);
+    public ResponseEntity<List<TaskDto>> getTasksByCompanyId(@PathVariable Long companyId,
+                                                             @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
+                                                             @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+                                                             @RequestParam(value = "sort", defaultValue = "id") String sort,
+                                                             @RequestParam(value = "order", defaultValue = "ASC") String order) {
+        var tasks = taskService.findAllByCompanyId(companyId, pageNumber, pageSize, sort, order);
         return new ResponseEntity<>(tasks, HttpStatus.OK);
     }
 
     @GetMapping("/company/{companyId}/user/{userId}/tasks")
-    public ResponseEntity<List<TaskDto>> getTasksByUserIdAndCompanyId(@PathVariable long companyId, @PathVariable long userId) {
-        var tasks = taskService.findAllByCompanyIdAndUserId(companyId, userId);
+    public ResponseEntity<List<TaskDto>> getTasksByUserIdAndCompanyId(@PathVariable Long companyId,
+                                                                      @PathVariable Long userId,
+                                                                      @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
+                                                                      @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+                                                                      @RequestParam(value = "sort", defaultValue = "id") String sort,
+                                                                      @RequestParam(value = "order", defaultValue = "ASC") String order) {
+        var tasks = taskService.findAllByCompanyIdAndUserId(companyId, userId, pageNumber, pageSize, sort, order);
         return new ResponseEntity<>(tasks, HttpStatus.OK);
     }
 
     @DeleteMapping("/company/{companyId}/user/{userId}/tasks")
-    public ResponseEntity<Void> deleteTasksByUserIdAndCompanyId(@PathVariable long companyId, @PathVariable long userId) {
+    public ResponseEntity<Void> deleteTasksByUserIdAndCompanyId(@PathVariable Long companyId, @PathVariable Long userId) {
         taskService.deleteAllByCompanyIdAndUserId(companyId, userId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @PutMapping("/company/{companyId}/tasks")
-    public ResponseEntity<String> updateTaskByCompanyId(@PathVariable long companyId, @RequestBody TaskDto taskDto) {
+    public ResponseEntity<String> updateTaskByCompanyId(@PathVariable Long companyId, @RequestBody TaskDto taskDto) {
         var taskId = taskService.updateTaskByCompanyId(companyId, taskDto);
         return new ResponseEntity<>(String.format("Task %d updated successfully", taskId), HttpStatus.OK);
     }

@@ -4,20 +4,19 @@ import java.util.List;
 
 public interface TaskService {
 
-
-    List<TaskDto> findAllByCompanyIdAndUserIdAndStatus(long companyId,
-                                                       long userId,
+    List<TaskDto> findAllByCompanyIdAndUserIdAndStatus(Long companyId,
+                                                       Long userId,
                                                        String status,
                                                        int pageNumber,
                                                        int pageSize,
                                                        String sort,
                                                        String order);
 
-    List<TaskDto> findAll();
+    List<TaskDto> findAll(int pageNumber, int pageSize, String sort, String order);
 
-    List<TaskDto> findAllByCompanyId(Long companyId);
+    List<TaskDto> findAllByCompanyId(Long companyId, int pageNumber, int pageSize, String sort, String order);
 
-    List<TaskDto> findAllByUserId(Long userId);
+    List<TaskDto> findAllByUserId(Long userId, int pageNumber, int pageSize, String sort, String order);
 
     Long saveTask(TaskDto taskDto);
 
@@ -27,11 +26,11 @@ public interface TaskService {
 
     Long updateTask(TaskDto taskDto);
 
-    List<TaskDto> findAllByCompanyIdAndUserId(long companyId, long userId);
+    List<TaskDto> findAllByCompanyIdAndUserId(Long companyId, Long userId, int pageNumber, int pageSize, String sort, String order);
 
-    void deleteAllByCompanyIdAndUserId(long companyId, long userId);
+    void deleteAllByCompanyIdAndUserId(Long companyId, Long userId);
 
-    Long updateTaskByCompanyId(long companyId, TaskDto taskDto);
+    Long updateTaskByCompanyId(Long companyId, TaskDto taskDto);
 
     TaskDto findByIdAndCompanyId(Long companyId, Long taskId);
 
@@ -39,5 +38,5 @@ public interface TaskService {
 
     void deleteByIdAndUserId(Long taskId, Long userId);
 
-    Long updateTaskByUserId(TaskDto taskDto, long userId);
+    Long updateTaskByUserId(TaskDto taskDto, Long userId);
 }
