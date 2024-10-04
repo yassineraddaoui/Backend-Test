@@ -14,6 +14,7 @@ This is a RESTful API for managing tasks within a SaaS application for companies
 - Create, update, delete, and retrieve tasks
 - Company-specific and user-specific task management
 - In-memory datastore 
+- Pagination: Implement pagination to efficiently handle large datasets when retrieving tasks.
 
 ## Endpoints
 
@@ -38,15 +39,14 @@ This is a RESTful API for managing tasks within a SaaS application for companies
 
 ## Running the Application
 To run the application, make sure you have the following setup:
-            
-             Java 17 or higher
+
+Java 17 or higher
 ## Data Initialization
 The `data.sql` file is located in the `src/main/resources` directory. It contains SQL statements for initializing the database with predefined tasks and users, which can be used for testing and verification purposes.
 ## Possible Enhancements
 
 Here are some potential improvements that can be made to the current project:
 
-- **Pagination**: Implement pagination to efficiently handle large datasets when retrieving tasks.
 - **Logging**: Add structured logging for better traceability and easier debugging.
 - **Validation**: Introduce input validation to ensure data integrity before processing requests.
 - **Authorization**: Implement role-based access control (RBAC) to manage user permissions and secure API endpoints.
