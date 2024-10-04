@@ -13,7 +13,7 @@ import java.util.Objects;
 @Getter
 @Setter
 @Builder
-public class Task {
+public class Task implements Comparable<Task> {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -49,5 +49,10 @@ public class Task {
         } else {
             return description;
         }
+    }
+
+    @Override
+    public int compareTo(Task o) {
+        return Long.compare(this.getId(), o.getId());
     }
 }

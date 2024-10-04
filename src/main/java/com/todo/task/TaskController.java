@@ -14,6 +14,18 @@ import java.util.List;
 public class TaskController {
     private final TaskService taskService;
 
+    @GetMapping("/company/{companyId}/user/{userId}/status/{status}")
+    public ResponseEntity<List<TaskDto>> getTaskByCompanyIdAndUserIdAndStatus(@PathVariable long companyId,
+                                                                              @PathVariable long userId,
+                                                                              @PathVariable String status,
+                                                                              @RequestParam(value = "pageNumber", defaultValue = "0") int pageNumber,
+                                                                              @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+                                                                              @RequestParam(value = "sort", defaultValue = "id") String sort,
+                                                                              @RequestParam(value = "sort", defaultValue = "ASC") String order
+    ) {
+        var tasks = taskService.findAllByCompanyIdAndUserIdAndStatus(companyId, userId, status, pageNumber, pageSize, sort, order);
+        return new ResponseEntity<>(tasks, HttpStatus.OK);
+    }
 
     @GetMapping("/tasks/{id}")
     public ResponseEntity<TaskDto> getTask(@PathVariable long id) {

@@ -4,6 +4,15 @@ import java.util.List;
 
 public interface TaskService {
 
+
+    List<TaskDto> findAllByCompanyIdAndUserIdAndStatus(long companyId,
+                                                       long userId,
+                                                       String status,
+                                                       int pageNumber,
+                                                       int pageSize,
+                                                       String sort,
+                                                       String order);
+
     List<TaskDto> findAll();
 
     List<TaskDto> findAllByCompanyId(Long companyId);

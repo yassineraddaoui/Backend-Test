@@ -2,6 +2,9 @@ package com.todo.task;
 
 import com.todo.exception.TaskNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -12,6 +15,29 @@ import java.util.List;
 public class TaskServiceImpl implements TaskService {
     private final TaskMapper mapper;
     private final TaskRepository taskRepository;
+
+
+    public List<TaskDto> findAllByCompanyIdAndUserIdAndStatus(long companyId,
+                                                              long userId,
+                                                              String status,
+                                                              int pageNumber,
+                                                              int pageSize,
+                                                              String sort,
+                                                              String order) {
+        Specification<Task> spec = Specification.where(
+                TaskSpecefication.hasCompanyId(companyId)
+                        .and(TaskSpecefication.hasTaskStatus(status.toUpperCase()))
+                        .and(TaskSpecefication.hasUserId(userId))
+        );
+
+        return taskRepository.findAll(
+                        spec,
+                        PageRequest.of(pageNumber, pageSize,
+                                Sort.Direction.valueOf(order.toUpperCase()), sort)
+                ).stream()
+                .map(mapper::toTaskDto)
+                .toList();
+    }
 
     public List<TaskDto> findAll() {
         try {
