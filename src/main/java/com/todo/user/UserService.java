@@ -8,6 +8,6 @@ public interface UserService {
 
     List<UserDto> getAllUsers();
 
-    User getUserById(Long id);
+    UserDto getUserById(Long id);
 
 }

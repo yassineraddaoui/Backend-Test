@@ -12,6 +12,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
 
     private final UserMapper mapper;
+    private final UserMapper userMapper;
 
     public Long createUser(UserDto userDto) {
         var user = mapper.toUser(userDto);
@@ -25,8 +26,9 @@ public class UserServiceImpl implements UserService {
                 .toList();
     }
 
-    public User getUserById(Long id) {
+    public UserDto getUserById(Long id) {
         return userRepository.findById(id)
+                .map(userMapper::toUserDto)
                 .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
     }
 }
