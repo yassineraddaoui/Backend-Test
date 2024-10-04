@@ -37,10 +37,15 @@ This is a RESTful API for managing tasks within a SaaS application for companies
 - `PUT /api/v1/company/{companyId}/tasks` - Update a task for a specific company
 - `DELETE /api/v1/company/{companyId}/user/{userId}/tasks` - Delete all tasks for a company and a specific user
 
+### Combined User-Company Task Management
+- `GET /api/v1/company/{companyId}/user/{userId}/tasks` - Retrieve all tasks for a specific company and user
+- `GET /api/v1/company/{companyId}/user/{userId}/status/{status}` - Retrieve tasks for a company and user with a specific status
+- `DELETE /api/v1/company/{companyId}/user/{userId}/tasks` - Delete all tasks for a company and user
+
 ## Running the Application
 To run the application, make sure you have the following setup:
 
-Java 17 or higher
+- Java 17 or higher
 ## Data Initialization
 The `data.sql` file is located in the `src/main/resources` directory. It contains SQL statements for initializing the database with predefined tasks and users, which can be used for testing and verification purposes.
 ## Possible Enhancements
@@ -50,3 +55,4 @@ Here are some potential improvements that can be made to the current project:
 - **Logging**: Add structured logging for better traceability and easier debugging.
 - **Validation**: Introduce input validation to ensure data integrity before processing requests.
 - **Authorization**: Implement role-based access control (RBAC) to manage user permissions and secure API endpoints.
+- **Error Handling**: Improve error handling by providing detailed and consistent error messages across all endpoints.
