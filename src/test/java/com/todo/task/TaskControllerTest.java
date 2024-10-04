@@ -104,7 +104,7 @@ class TaskControllerTest {
                 .build();
         List<TaskDto> listTasks = List.of(task, task2);
 
-        Mockito.when(taskService.findAll()).thenReturn(listTasks);
+        Mockito.when(taskService.findAll(0,10,"id","ASC")).thenReturn(listTasks);
 
         mockMvc.perform(get(requestURI))
                 .andExpect(status().isOk())
@@ -205,7 +205,7 @@ class TaskControllerTest {
 
         List<TaskDto> tasks = List.of(task1, task2);
 
-        Mockito.when(taskService.findAllByCompanyId(companyId)).thenReturn(tasks);
+        Mockito.when(taskService.findAllByCompanyId(companyId,0,10,"id","ASC")).thenReturn(tasks);
 
         mockMvc.perform(get(requestURI))
                 .andExpect(status().isOk())
