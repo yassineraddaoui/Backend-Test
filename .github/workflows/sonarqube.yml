@@ -61,7 +61,7 @@ jobs:
       with:
         args: >
           -Dsonar.projectKey=my_project
-          -Dsonar.projectName=My Project
+          -Dsonar.projectName="MyProject"
           -Dsonar.projectVersion=1.0
           -Dsonar.sources=.
           -Dsonar.sourceEncoding=UTF-8
