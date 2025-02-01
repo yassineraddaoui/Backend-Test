@@ -1,78 +1,52 @@
-name: SonarQube Analysis with Basic Auth
+name: SonarQube Analysis
 
 on:
   push:
     branches: [ main ]
 
 env:
-  SONARQUBE_ADMIN_PASSWORD: ${{ secrets.SONAR_ADMIN_PASSWORD }}
   SONARQUBE_URL: http://localhost:9000
+  SONARQUBE_ADMIN_PASSWORD: ${{ secrets.SONAR_ADMIN_PASSWORD }}
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v3
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Start SonarQube
+        run: |
+          docker run -d --name sonarqube \
+            -p 9000:9000 \
+            -e SONARQUBE_ADMIN_PASSWORD=$SONARQUBE_ADMIN_PASSWORD \
+            sonarqube:community
 
-    - name: Build with Maven
-      run: mvn clean compile test-compile -DskipTests
+      - name: Wait for SonarQube
+        run: |
+          for i in {1..20}; do
+            if curl -sSf -u admin:$SONARQUBE_ADMIN_PASSWORD \
+              "$SONARQUBE_URL/api/system/status" | grep -q '"status":"UP"'; then
+              break
+            fi
+            sleep 10
+          done
 
-    - name: Start SonarQube Server
-      run: |
-        docker run -d --name sonarqube \
-          -p 9000:9000 \
-          -e SONARQUBE_ADMIN_PASSWORD=$SONARQUBE_ADMIN_PASSWORD \
-          sonarqube:community
+      - name: Run SonarScanner
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_HOST_URL: ${{ env.SONARQUBE_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+            -Dsonar.scanner.force-jre-execution=true
+            -Dsonar.scanner.skip-jre-provisioning=true
+            -Dsonar.projectKey=my_project
+            -Dsonar.projectName="My Project"
+            -Dsonar.java.binaries=target/classes
+            -Dsonar.java.libraries=target/*.jar
 
-        # Enhanced health check
-        for i in {1..20}; do
-          if curl -sI -u admin:$SONARQUBE_ADMIN_PASSWORD $SONARQUBE_URL/api/system/status | grep -q "200 OK"; then
-            echo "SonarQube is ready!"
-            break
-          fi
-          echo "Waiting for SonarQube to start... ($i/20)"
-          sleep 10
-        done
-
-    - name: Verify SonarQube Connection
-      run: |
-        curl -sI -u admin:$SONARQUBE_ADMIN_PASSWORD $SONARQUBE_URL/api/system/status
-
-    - name: Run SonarQube Scanner
-      uses: SonarSource/sonarqube-scan-action@master
-      with:
-        args: >
-          -Dsonar.login=admin
-          -Dsonar.password=${{ env.SONARQUBE_ADMIN_PASSWORD }}
-          -Dsonar.projectKey=my_project
-          -Dsonar.projectName="My Project"
-          -Dsonar.projectVersion=1.0
-          -Dsonar.sources=src/main/java
-          -Dsonar.java.binaries=target/classes
-          -Dsonar.java.libraries=target/*.jar
-          -Dsonar.java.source=17
-          -Dsonar.sourceEncoding=UTF-8
-          -Dsonar.tests=src/test/java
-          -Dsonar.test.inclusions=**/*Test.java
-          -Dsonar.junit.reportPaths=target/surefire-reports
-          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-
-    - name: View SonarQube Logs
-      if: failure()
-      run: docker logs sonarqube
-
-    - name: Cleanup SonarQube
-      if: always()
-      run: |
-        docker stop sonarqube || true
-        docker rm sonarqube || true
+      - name: Cleanup
+        if: always()
+        run: docker rm -f sonarqube
