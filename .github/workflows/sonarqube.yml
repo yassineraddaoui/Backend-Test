@@ -19,33 +19,39 @@ jobs:
         fetch-depth: 0  # Required for SonarQube to get full commit history
 
     - name: Set up Docker
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y jq
+      run: sudo apt-get update && sudo apt-get install -y jq curl
 
     - name: Start SonarQube Server
       run: |
         docker run -d --name sonarqube \
           -p 9000:9000 \
-          -e SONARQUBE_ADMIN_PASSWORD=$SONARQUBE_ADMIN_PASSWORD \
+          -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
           sonarqube:community
-        # Wait for SonarQube to be fully up
-        until $(curl --output /dev/null --silent --head --fail $SONARQUBE_URL); do
-          echo 'Waiting for SonarQube to start...'
-          sleep 10
-        done
-        # Additional wait for initialization completion
-        until [ "$(curl -s $SONARQUBE_URL/api/system/status | jq -r .status)" = "UP" ]; do
-          echo 'Waiting for SonarQube to be ready...'
+
+        echo "Waiting for SonarQube to start..."
+        until curl -s -o /dev/null -w "%{http_code}" "$SONARQUBE_URL" | grep -q "200"; do
           sleep 10
         done
 
+        echo "Waiting for SonarQube to be fully ready..."
+        until [ "$(curl -s $SONARQUBE_URL/api/system/status | jq -r .status)" = "UP" ]; do
+          sleep 10
+        done
+        echo "SonarQube is ready!"
+
     - name: Generate SonarQube Token
       run: |
-        RESPONSE=$(curl -s -u admin:$SONARQUBE_ADMIN_PASSWORD \
+        RESPONSE=$(curl -s -u admin:admin \
           -X POST "$SONARQUBE_URL/api/user_tokens/generate" \
-          -d "name=github-action")
-        echo "SONAR_TOKEN=$(echo $RESPONSE | jq -r .token)" >> $GITHUB_ENV
+          -d "name=github-action" || echo "")
+
+        TOKEN=$(echo "$RESPONSE" | jq -r .token)
+        if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
+          echo "Failed to generate token. Ensure SonarQube is running and credentials are correct."
+          exit 1
+        fi
+
+        echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_ENV
 
     - name: Run SonarQube Scanner
       uses: SonarSource/sonarqube-scan-action@master
@@ -62,4 +68,4 @@ jobs:
 
     - name: Stop SonarQube Server
       if: always()
-      run: docker stop sonarqube
+      run: docker stop sonarqube && docker rm sonarqube
