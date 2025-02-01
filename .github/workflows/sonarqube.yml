@@ -44,25 +44,14 @@ jobs:
           fi
           sleep 10
         done
-
+        
     - name: Generate SonarQube Token
       run: |
-        echo "Generating SonarQube Token..."
-        RESPONSE=$(curl -s -u "admin:${SONARQUBE_ADMIN_PASSWORD}" \
-          -X POST "${SONARQUBE_URL}/api/user_tokens/generate" \
-          -d "name=github-action-$(date +%s)")
+        RESPONSE=$(curl -s -u admin:$SONARQUBE_ADMIN_PASSWORD \
+          -X POST "$SONARQUBE_URL/api/user_tokens/generate" \
+          -d "name=github-action")
+        echo "SONAR_TOKEN=$(echo $RESPONSE | jq -r .token)" >> $GITHUB_ENV
 
-        echo "Generated token response: $RESPONSE"  # Debug output
-        TOKEN=$(echo "$RESPONSE" | jq -r '.token')
-
-        # Ensure token is valid
-        if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
-          echo "Error: Failed to generate SonarQube token"
-          exit 1
-        fi
-
-        echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_ENV
-        echo "::add-mask::$TOKEN"  # Mask token in logs
 
     - name: Run SonarQube Scanner
       uses: SonarSource/sonarqube-scan-action@master
