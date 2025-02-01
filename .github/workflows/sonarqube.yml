@@ -1,59 +1,65 @@
-name: SonarQube Code Analysis
+name: SonarQube Analysis
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [ main ]
+
+env:
+  SONARQUBE_ADMIN_PASSWORD: ${{ secrets.SONAR_ADMIN_PASSWORD }}
+  SONARQUBE_URL: http://localhost:9000
 
 jobs:
-  sonar-analysis:
+  analyze:
     runs-on: ubuntu-latest
-    services:
-      sonarqube:
-        image: sonarqube:lts
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd="curl -s http://localhost:9000/api/system/health | grep UP"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-        env:
-          SONARQUBE_JDBC_URL: "jdbc:postgresql://localhost/sonarqube"
-          SONARQUBE_JDBC_USERNAME: "sonar"
-          SONARQUBE_JDBC_PASSWORD: "sonar"
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Required for SonarQube to get full commit history
 
-      - name: Wait for SonarQube to be Ready
-        run: |
-          echo "Waiting for SonarQube to start..."
-          until curl -s http://localhost:9000/api/system/health | grep -q UP; do
-            sleep 5
-          done
-          echo "SonarQube is up and running!"
+    - name: Set up Docker
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
 
-      - name: Install Sonar Scanner
-        run: |
-          wget -qO - https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -O sonar-scanner.zip
-          unzip sonar-scanner.zip
-          sudo mv sonar-scanner-5.0.1.3006-linux /opt/sonar-scanner
-          echo "export PATH=$PATH:/opt/sonar-scanner/bin" >> $HOME/.bashrc
-          source $HOME/.bashrc
+    - name: Start SonarQube Server
+      run: |
+        docker run -d --name sonarqube \
+          -p 9000:9000 \
+          -e SONARQUBE_ADMIN_PASSWORD=$SONARQUBE_ADMIN_PASSWORD \
+          sonarqube:community
+        # Wait for SonarQube to be fully up
+        until $(curl --output /dev/null --silent --head --fail $SONARQUBE_URL); do
+          echo 'Waiting for SonarQube to start...'
+          sleep 10
+        done
+        # Additional wait for initialization completion
+        until [ "$(curl -s $SONARQUBE_URL/api/system/status | jq -r .status)" = "UP" ]; do
+          echo 'Waiting for SonarQube to be ready...'
+          sleep 10
+        done
 
-      - name: Run SonarQube Analysis
-        run: |
-          /opt/sonar-scanner/bin/sonar-scanner \
-            -Dsonar.projectKey=MyProject \
-            -Dsonar.sources=. \
-            -Dsonar.host.url=http://localhost:9000 \
-            -Dsonar.login=admin \
-            -Dsonar.password=admin
+    - name: Generate SonarQube Token
+      run: |
+        RESPONSE=$(curl -s -u admin:$SONARQUBE_ADMIN_PASSWORD \
+          -X POST "$SONARQUBE_URL/api/user_tokens/generate" \
+          -d "name=github-action")
+        echo "SONAR_TOKEN=$(echo $RESPONSE | jq -r .token)" >> $GITHUB_ENV
 
-      - name: Print SonarQube Analysis Results
-        run: |
-          echo "Check SonarQube results at: http://localhost:9000/dashboard?id=MyProject"
+    - name: Run SonarQube Scanner
+      uses: SonarSource/sonarqube-scan-action@master
+      env:
+        SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ env.SONARQUBE_URL }}
+      with:
+        args: >
+          -Dsonar.projectKey=my_project
+          -Dsonar.projectName=My Project
+          -Dsonar.projectVersion=1.0
+          -Dsonar.sources=.
+          -Dsonar.sourceEncoding=UTF-8
+
+    - name: Stop SonarQube Server
+      if: always()
+      run: docker stop sonarqube
