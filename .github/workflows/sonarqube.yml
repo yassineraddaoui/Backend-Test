@@ -1,4 +1,4 @@
-name: SonarQube Analysis Pipeline
+name: SonarQube Analysis with Basic Auth
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
-        fetch-depth: 0  # Required for full commit history analysis
+        fetch-depth: 0
 
     - name: Set up JDK 17
       uses: actions/setup-java@v3
@@ -31,35 +31,29 @@ jobs:
       run: |
         docker run -d --name sonarqube \
           -p 9000:9000 \
+          -e SONARQUBE_ADMIN_PASSWORD=$SONARQUBE_ADMIN_PASSWORD \
           sonarqube:community
 
-        # Wait for SonarQube to become operational
-        echo "Waiting for SonarQube to be ready..."
-        for i in {1..30}; do
-          STATUS=$(curl -s $SONARQUBE_URL/api/system/status | jq -r .status)
-          echo "SonarQube status: $STATUS"
-          if [[ "$STATUS" == "UP" ]]; then
+        # Enhanced health check
+        for i in {1..20}; do
+          if curl -sI -u admin:$SONARQUBE_ADMIN_PASSWORD $SONARQUBE_URL/api/system/status | grep -q "200 OK"; then
             echo "SonarQube is ready!"
             break
           fi
+          echo "Waiting for SonarQube to start... ($i/20)"
           sleep 10
         done
-        
-    - name: Generate SonarQube Token
-      run: |
-        RESPONSE=$(curl -s -u admin:$SONARQUBE_ADMIN_PASSWORD \
-          -X POST "$SONARQUBE_URL/api/user_tokens/generate" \
-          -d "name=github-action")
-        echo "SONAR_TOKEN=$(echo $RESPONSE | jq -r .token)" >> $GITHUB_ENV
 
+    - name: Verify SonarQube Connection
+      run: |
+        curl -sI -u admin:$SONARQUBE_ADMIN_PASSWORD $SONARQUBE_URL/api/system/status
 
     - name: Run SonarQube Scanner
       uses: SonarSource/sonarqube-scan-action@master
-      env:
-        SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ env.SONARQUBE_URL }}
       with:
         args: >
+          -Dsonar.login=admin
+          -Dsonar.password=${{ env.SONARQUBE_ADMIN_PASSWORD }}
           -Dsonar.projectKey=my_project
           -Dsonar.projectName="My Project"
           -Dsonar.projectVersion=1.0
@@ -73,11 +67,11 @@ jobs:
           -Dsonar.junit.reportPaths=target/surefire-reports
           -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
 
-    - name: View SonarQube Logs (if failed)
+    - name: View SonarQube Logs
       if: failure()
       run: docker logs sonarqube
 
-    - name: Stop SonarQube Server
+    - name: Cleanup SonarQube
       if: always()
       run: |
         docker stop sonarqube || true
