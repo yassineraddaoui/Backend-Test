@@ -1,4 +1,4 @@
-name: SonarQube Analysis
+name: SonarQube Analysis Pipeline
 
 on:
   push:
@@ -16,42 +16,36 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
-        fetch-depth: 0  # Required for SonarQube to get full commit history
+        fetch-depth: 0  # Required for full commit history analysis
 
-    - name: Set up Docker
-      run: sudo apt-get update && sudo apt-get install -y jq curl
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Build with Maven
+      run: mvn clean compile test-compile -DskipTests
 
     - name: Start SonarQube Server
       run: |
         docker run -d --name sonarqube \
           -p 9000:9000 \
-          -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
+          -e SONARQUBE_ADMIN_PASSWORD=$SONARQUBE_ADMIN_PASSWORD \
           sonarqube:community
-
-        echo "Waiting for SonarQube to start..."
-        until curl -s -o /dev/null -w "%{http_code}" "$SONARQUBE_URL" | grep -q "200"; do
-          sleep 10
-        done
-
-        echo "Waiting for SonarQube to be fully ready..."
+        
+        # Wait for SonarQube to become operational
         until [ "$(curl -s $SONARQUBE_URL/api/system/status | jq -r .status)" = "UP" ]; do
+          echo 'Waiting for SonarQube to be ready...'
           sleep 10
         done
-        echo "SonarQube is ready!"
 
     - name: Generate SonarQube Token
       run: |
-        RESPONSE=$(curl -s -u admin:admin \
+        RESPONSE=$(curl -s -u admin:$SONARQUBE_ADMIN_PASSWORD \
           -X POST "$SONARQUBE_URL/api/user_tokens/generate" \
-          -d "name=github-action" || echo "")
-
-        TOKEN=$(echo "$RESPONSE" | jq -r .token)
-        if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
-          echo "Failed to generate token. Ensure SonarQube is running and credentials are correct."
-          exit 1
-        fi
-
-        echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_ENV
+          -d "name=github-action")
+        echo "SONAR_TOKEN=$(echo $RESPONSE | jq -r .token)" >> $GITHUB_ENV
 
     - name: Run SonarQube Scanner
       uses: SonarSource/sonarqube-scan-action@master
@@ -61,11 +55,24 @@ jobs:
       with:
         args: >
           -Dsonar.projectKey=my_project
-          -Dsonar.projectName="MyProject"
+          -Dsonar.projectName="My Project"
           -Dsonar.projectVersion=1.0
-          -Dsonar.sources=.
+          -Dsonar.sources=src/main/java
+          -Dsonar.java.binaries=target/classes
+          -Dsonar.java.libraries=target/*.jar
+          -Dsonar.java.source=17
           -Dsonar.sourceEncoding=UTF-8
+          -Dsonar.tests=src/test/java
+          -Dsonar.test.inclusions=**/*Test.java
+          -Dsonar.junit.reportPaths=target/surefire-reports
+          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+
+    - name: View SonarQube Logs (if failed)
+      if: failure()
+      run: docker logs sonarqube
 
     - name: Stop SonarQube Server
       if: always()
-      run: docker stop sonarqube && docker rm sonarqube
+      run: |
+        docker stop sonarqube || true
+        docker rm sonarqube || true
