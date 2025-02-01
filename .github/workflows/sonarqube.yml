@@ -28,45 +28,50 @@ jobs:
           for i in {1..30}; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u admin:${SONARQUBE_ADMIN_PASSWORD} "$SONARQUBE_URL/api/system/status")
             if [[ "$STATUS" -eq 200 ]]; then
-              echo "SonarQube is up!"
-              break
+              echo "Checking operational status..."
+              OPERATIONAL=$(curl -s -u admin:${SONARQUBE_ADMIN_PASSWORD} "$SONARQUBE_URL/api/system/status" | jq -r .status)
+              if [[ "$OPERATIONAL" == "UP" ]]; then
+                echo "SonarQube is fully operational!"
+                break
+              fi
             fi
             echo "Waiting for SonarQube to start... ($i/30)"
             sleep 10
           done
 
-      - name: Generate SonarQube Token (if missing)
+      - name: Generate SonarQube Token
         run: |
-          if [[ -z "${{ secrets.SONAR_TOKEN }}" ]]; then
-            echo "Generating SonarQube Token..."
-            RESPONSE=$(curl -s -u "admin:${SONARQUBE_ADMIN_PASSWORD}" \
-              -X POST "${SONARQUBE_URL}/api/user_tokens/generate" \
-              -d "name=github-action-$(date +%s)")
-            TOKEN=$(echo "$RESPONSE" | jq -r '.token')
-
-            if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
-              echo "Error: Failed to generate SonarQube token"
-              exit 1
-            fi
-
-            echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_ENV
-            echo "::add-mask::$TOKEN"  # Mask token in logs
+          echo "Generating SonarQube Token..."
+          RESPONSE=$(curl -s -u "admin:${SONARQUBE_ADMIN_PASSWORD}" \
+            -X POST "${SONARQUBE_URL}/api/user_tokens/generate" \
+            -d "name=github-action-$(date +%s)")
+          
+          TOKEN=$(echo "$RESPONSE" | jq -r '.token')
+          
+          if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
+            echo "Error: Failed to generate SonarQube token. Response: $RESPONSE"
+            exit 1
           fi
+
+          echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_ENV
+          echo "::add-mask::$TOKEN"
 
       - name: Run SonarScanner
         uses: SonarSource/sonarqube-scan-action@master
         env:
           SONAR_HOST_URL: ${{ env.SONARQUBE_URL }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}  # Use environment variable instead of secret
         with:
           args: >
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+            -Dsonar.login=${{ env.SONAR_TOKEN }}
             -Dsonar.scanner.force-jre-execution=true
             -Dsonar.scanner.skip-jre-provisioning=true
             -Dsonar.projectKey=my_project
             -Dsonar.projectName="My Project"
             -Dsonar.java.binaries=target/classes
             -Dsonar.java.libraries=target/*.jar
+            -Dsonar.java.source=17
+            -Dsonar.sourceEncoding=UTF-8
 
       - name: View SonarQube Logs (if failed)
         if: failure()
@@ -76,5 +81,5 @@ jobs:
         if: always()
         run: |
           echo "Stopping and removing SonarQube..."
-          docker stop sonarqube 2>/dev/null || echo "SonarQube not running"
-          docker rm -f sonarqube 2>/dev/null || echo "SonarQube container already removed"
+          docker stop sonarqube 2>/dev/null || true
+          docker rm -f sonarqube 2>/dev/null || true
