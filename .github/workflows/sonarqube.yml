@@ -19,18 +19,39 @@ jobs:
         run: |
           docker run -d --name sonarqube \
             -p 9000:9000 \
-            -e SONARQUBE_ADMIN_PASSWORD=$SONARQUBE_ADMIN_PASSWORD \
+            -e SONARQUBE_ADMIN_PASSWORD=${SONARQUBE_ADMIN_PASSWORD} \
             sonarqube:community
 
-      - name: Wait for SonarQube
+      - name: Wait for SonarQube to be Ready
         run: |
-          for i in {1..20}; do
-            if curl -sSf -u admin:$SONARQUBE_ADMIN_PASSWORD \
-              "$SONARQUBE_URL/api/system/status" | grep -q '"status":"UP"'; then
+          echo "Waiting for SonarQube to be available..."
+          for i in {1..30}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u admin:${SONARQUBE_ADMIN_PASSWORD} "$SONARQUBE_URL/api/system/status")
+            if [[ "$STATUS" -eq 200 ]]; then
+              echo "SonarQube is up!"
               break
             fi
+            echo "Waiting for SonarQube to start... ($i/30)"
             sleep 10
           done
+
+      - name: Generate SonarQube Token (if missing)
+        run: |
+          if [[ -z "${{ secrets.SONAR_TOKEN }}" ]]; then
+            echo "Generating SonarQube Token..."
+            RESPONSE=$(curl -s -u "admin:${SONARQUBE_ADMIN_PASSWORD}" \
+              -X POST "${SONARQUBE_URL}/api/user_tokens/generate" \
+              -d "name=github-action-$(date +%s)")
+            TOKEN=$(echo "$RESPONSE" | jq -r '.token')
+
+            if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
+              echo "Error: Failed to generate SonarQube token"
+              exit 1
+            fi
+
+            echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_ENV
+            echo "::add-mask::$TOKEN"  # Mask token in logs
+          fi
 
       - name: Run SonarScanner
         uses: SonarSource/sonarqube-scan-action@master
@@ -47,6 +68,13 @@ jobs:
             -Dsonar.java.binaries=target/classes
             -Dsonar.java.libraries=target/*.jar
 
+      - name: View SonarQube Logs (if failed)
+        if: failure()
+        run: docker logs sonarqube
+
       - name: Cleanup
         if: always()
-        run: docker rm -f sonarqube
+        run: |
+          echo "Stopping and removing SonarQube..."
+          docker stop sonarqube 2>/dev/null || echo "SonarQube not running"
+          docker rm -f sonarqube 2>/dev/null || echo "SonarQube container already removed"
